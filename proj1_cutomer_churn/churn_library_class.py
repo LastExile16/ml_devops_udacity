@@ -1,6 +1,11 @@
-import os
-os.environ['QT_QPA_PLATFORM']='offscreen'
+'''
+The churn_library.py is a library of functions to find customers who are likely to churn.
+'''
+
 import pandas as pd
+import os
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+
 
 class ChurnLibrary:
     def __init__(self, pth):
@@ -42,9 +47,17 @@ class ChurnLibrary:
                   y_train: y training data
                   y_test: y testing data
         '''
-        # Perform feature engineering operations on self.df and return X_train, X_test, y_train, y_test
+        # Perform feature engineering operations on self.df and return X_train,
+        # X_test, y_train, y_test
 
-    def classification_report_image(self, y_train, y_test, y_train_preds_lr, y_train_preds_rf, y_test_preds_lr, y_test_preds_rf):
+    def classification_report_image(
+            self,
+            y_train,
+            y_test,
+            y_train_preds_lr,
+            y_train_preds_rf,
+            y_test_preds_lr,
+            y_test_preds_rf):
         '''
         produces classification report for training and testing results and stores report as image
         in images folder

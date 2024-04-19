@@ -5,12 +5,32 @@ The churn_library.py is a library of functions to find customers who are likely 
 import pandas as pd
 import os
 os.environ['QT_QPA_PLATFORM'] = 'offscreen'
-
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns; sns.set()
 
 class ChurnLibrary:
     def __init__(self, pth):
         self.df = pd.read_csv(pth, header=0)
-
+    
+    def plot_and_save_histogram(self, data, xlabel, save_name):
+        '''
+        function to plot and save histogram
+        
+        input: 
+            - data to plot
+            - x-axis label
+            - file name
+        '''
+        
+        fig, ax = plt.subplots()
+        ax.hist(data)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel('Number of Customers')
+        plt.savefig(save_name)
+        plt.close()
+    
     def perform_eda(self):
         '''
         perform eda on df and save figures to images folder
@@ -20,7 +40,18 @@ class ChurnLibrary:
         output:
                 None
         '''
-        # Perform EDA operations on self.df and save figures
+        df = self.df
+        # Plot and save churn vs. active histogram
+        self.plot_and_save_histogram(df['Attrition_Flag'], 
+                                'Churned vs Active Customer', 
+                                'images/churn_vs_active_histogram.png')
+        
+        # Plot and save customer age histogram
+        self.plot_and_save_histogram(df['Customer_Age'], 
+                                'Customer Age', 
+                                'images/customer_age_histogram.png')
+        
+        
 
     def encoder_helper(self, category_lst, response):
         '''
@@ -99,3 +130,6 @@ class ChurnLibrary:
                   None
         '''
         # Train models and store results
+if __name__ == 'main':
+    cl_object = ChurnLibrary("./data/bank_data.csv")
+    

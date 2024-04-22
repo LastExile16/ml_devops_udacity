@@ -19,6 +19,7 @@ class ChurnLibrary:
         - file_path (str): Path to the CSV file containing data.
         """
         self.df = pd.read_csv(file_path, header=0)
+        self.df['Churn'] = self.df['Attrition_Flag'].apply(lambda val: 0 if val == "Existing Customer" else 1)
     
     def _save_plot(self, fig, save_name):
         """
@@ -100,7 +101,7 @@ class ChurnLibrary:
                            'images/density_total_trans_count.png')
         self._plot_heatmap(df, 
                            'Heatmap Correlation', 
-                           'images/heatmap_corr.png'
+                           'images/heatmap_corr.png')
 
     def encoder_helper(self, category_lst, response):
         '''

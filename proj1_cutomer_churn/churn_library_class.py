@@ -10,6 +10,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 
+from sklearn.preprocessing import normalize
+from sklearn.model_selection import train_test_split
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
+
+from sklearn.metrics import plot_roc_curve, classification_report
+
 class ChurnLibrary:
     def __init__(self, file_path):
         """
@@ -18,7 +27,8 @@ class ChurnLibrary:
         Parameters:
         - file_path (str): Path to the CSV file containing data.
         """
-        self.df = pd.read_csv(file_path, header=0)
+        self.df = pd.read_csv(file_path, header=0, index_col=0)
+        # first encode the Attrition_Flag since other categorical columns are depending on it.
         self.df['Churn'] = self.df['Attrition_Flag'].apply(lambda val: 0 if val == "Existing Customer" else 1)
     
     def _save_plot(self, fig, save_name):
@@ -29,8 +39,9 @@ class ChurnLibrary:
         - fig (matplotlib.figure.Figure): Figure object to save.
         - save_name (str): File path to save the image.
         """
-        plt.savefig(save_name)
-        plt.close()
+        fig.savefig(save_name)
+        plt.close(fig)
+
     
     def _plot_hist_or_bar(self, data, title, save_name, plot_type='hist'):
         """
@@ -51,6 +62,7 @@ class ChurnLibrary:
             raise ValueError("Invalid plot_type. Use 'hist' or 'bar'.")
         ax.set_title(title)
         ax.set_ylabel('Number of Customers')
+        fig.tight_layout()
         self._save_plot(fig, save_name)
     
     def _plot_density(self, data, title, save_name):
@@ -65,6 +77,7 @@ class ChurnLibrary:
         fig, ax = plt.subplots(figsize=(20, 10))
         sns.histplot(data, stat='density', kde=True, ax=ax)
         ax.set_title(title)
+        fig.tight_layout()
         self._save_plot(fig, save_name)
     
     def _plot_heatmap(self, df, title, save_name):
@@ -79,6 +92,7 @@ class ChurnLibrary:
         fig, ax = plt.subplots(figsize=(20, 10))
         sns.heatmap(df.corr(), annot=False, cmap='Dark2_r', linewidths=2, ax=ax)
         ax.set_title(title)
+        fig.tight_layout()
         self._save_plot(fig, save_name)
     
     def perform_eda(self):
@@ -88,7 +102,8 @@ class ChurnLibrary:
         df = self.df
         self._plot_hist_or_bar(df['Attrition_Flag'], 
                                'Churned vs Active Customer', 
-                               'images/churn_vs_active_histogram.png')
+                               'images/churn_vs_active_histogram.png',
+                              plot_type='bar')
         self._plot_hist_or_bar(df['Customer_Age'], 
                                'Customer Age', 
                                'images/customer_age_histogram.png')
@@ -105,17 +120,23 @@ class ChurnLibrary:
 
     def encoder_helper(self, category_lst, response):
         '''
-        helper function to turn each categorical column into a new column with
-        proportion of churn for each category - associated with cell 15 from the notebook
+        Helper function to encode categorical columns by creating new columns with the proportion of churn for each category.
 
-        input:
-                category_lst: list of columns that contain categorical features
-                response: string of response name [optional argument that could be used for naming variables or index y column]
+        Input:
+            category_lst: List of column names that contain categorical features.
+            response: Name of the response column.
 
-        output:
-                df: pandas dataframe with new columns
+        Output:
+            df: DataFrame with new encoded columns.
+
         '''
-        # Perform encoding operations on self.df
+        
+        for cat in category_lst:
+            cat_groups = self.df.groupby(cat).mean()[response]
+            
+            self.df[f'{cat}_{response}'] = None
+            for group in cat_groups.index:
+                self.df.loc[self.df[cat]==group, f'{cat}_{response}'] = cat_groups.loc[group]
 
     def perform_feature_engineering(self, response):
         '''
@@ -130,6 +151,12 @@ class ChurnLibrary:
         '''
         # Perform feature engineering operations on self.df and return X_train,
         # X_test, y_train, y_test
+        # train test split 
+        X = self.df[response]
+        y = self.df.drop([response, 'Attrition_Flag'], axis=1)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size= 0.3, random_state=42)
+        
+        return X_train, X_test, y_train, y_test
 
     def classification_report_image(
             self,

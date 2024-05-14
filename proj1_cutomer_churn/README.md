@@ -7,7 +7,14 @@ The project addresses the issue of increasing customer churn in a bank's credit 
 
 In this project, we implement two predictive models, logistic regression, and random forest, to forecast customer churn. The models are evaluated and compared based on their performance, with the random forest model demonstrating superior predictive capabilities.
 
-Through detailed analysis, the project identifies key characteristics associated with churning customers, notably emphasizing low transaction volume as a significant indicator.
+Through detailed analysis, the project identifies key characteristics associated with churning customers, notably emphasizing low transaction count and low revolving balance as a significant indicators.
+## Dependencies
+This project depends on multiple packages. 
+
+To be able to run the project you can install the required packages with the following command.
+```bash
+python -m pip install -r requirements_py3.6.txt
+```
 
 ## Files and Data Description
 - **`churn_library_class.py`**: This file contains a Python class that implements logistic regression and random forest models for churn prediction. The class provides various functions for data analysis and feature extraction using SHAP (SHapley Additive exPlanations) analysis.
@@ -17,10 +24,10 @@ Through detailed analysis, the project identifies key characteristics associated
 ## Running Files
 To execute the predictive models, follow these steps:
 1. Prepare the dataset path.
-2. Pass the dataset path using the `--data_path` flag to the `churn_library_class.py` file:
+2. Pass the dataset path using the `--data-path` flag to the `churn_library_class.py` file:
 
 ```bash
-    python churn_library_class.py --data_path ./data/bank_data.csv
+    python churn_library_class.py --data-path ./data/bank_data.csv
 ```
    
 

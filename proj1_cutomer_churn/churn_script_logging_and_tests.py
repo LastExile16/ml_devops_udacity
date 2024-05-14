@@ -33,11 +33,11 @@ def cl_object():
         
         # Generate synthetic data for testing
         X, y = make_classification(n_samples=100, n_features=10, random_state=42)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5, random_state=42)
-        
         # Create a DataFrame with dummy column names
         feature_names = [f'feature_{i}' for i in range(X.shape[1])]
         X_df = pd.DataFrame(X, columns=feature_names)
+        y_df = pd.DataFrame(y, columns=['target'])
+        X_train, X_test, y_train, y_test = train_test_split(X_df, y_df, test_size=0.5, random_state=42)
         
         # Attach data variables to the ChurnLibrary object
         obj.X_train = X_train

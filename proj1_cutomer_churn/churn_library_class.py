@@ -55,6 +55,7 @@ class ChurnLibrary:
         self.y_train = None # assigned when dataset is ready
         self.y_test = None # assigned when dataset is ready
         self.cv_rfc = None # models to be trained later
+        self.rfc_best = None # the best estimator within cv_rfc
         self.lrc = None # models to be trained later
     
     def _save_plot(self, fig, save_name):
@@ -189,6 +190,8 @@ class ChurnLibrary:
         unwanted_cols = [response] if unwanted_cols is None else unwanted_cols + [response]
         self.X = self.df.drop(unwanted_cols, axis=1)
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size= 0.3, random_state=42)
+        self.y_train = self.y_train.values.ravel()
+        self.y_test = self.y_test.values.ravel()
 
     def _save_classification_report(self, model_name, 
                                     y_test_pred, 
@@ -250,7 +253,7 @@ class ChurnLibrary:
                                          "./images/rfc_classification_report.png")
 
         self._save_classification_report("Logistic Regression",
-                                         y_train_preds_lr,
+                                         y_test_preds_lr,
                                          y_train_preds_lr,
                                          "./images/lrc_classification_report.png")
         
@@ -270,7 +273,7 @@ class ChurnLibrary:
 
         fig, ax = plt.subplots(figsize=(15, 8))  # Create a figure and axes
         
-        models = [self.cv_rfc.best_estimator_, self.lrc]
+        models = [self.rfc_best, self.lrc]
         # Plot ROC curve for each model
         for model in models:
             plot_roc_curve(model, self.X_test, self.y_test, ax=ax, alpha=0.8, name=f'{model.__class__.__name__} ROC Curve')
@@ -300,7 +303,7 @@ class ChurnLibrary:
         assert self.y_test is not None, "y_test data is needed, use perform_feature_engineering to generate it"
         assert self.X_test is not None, "X_test data is needed, use perform_feature_engineering to generate it"
         
-        models = [self.cv_rfc.best_estimator_, self.lrc]
+        models = [self.rfc_best, self.lrc]
         num_models = len(models)
         num_classes = len(np.unique(self.y_test))
 
@@ -315,12 +318,15 @@ class ChurnLibrary:
             # Plot scatter plot for each class based on predicted labels
             for label in range(num_classes):
                 indices = np.where(y_pred == label)[0]
-                ax.scatter(indices, model.predict_proba(self.X_test[indices, :])[:, 1], label=f'Pred Class {label}', alpha=0.5, s=100)
+                if indices.size > 0:  # Check if there are indices for this label
+                    ax.scatter(indices, model.predict_proba(self.X_test.iloc[indices])[:, 1], label=f'Pred Class {label}', alpha=0.5, s=100)
 
             # Plot true classifications based on self.y_test
             for label in range(num_classes):
                 indices = np.where(self.y_test == label)[0]
-                ax.scatter(indices, model.predict_proba(self.X_test[indices, :])[:, 1], marker='x', label=f'True Class {label}', alpha=0.7)
+                if indices.size > 0:  # Check if there are indices for this label
+                    ax.scatter(indices, model.predict_proba(self.X_test.iloc[indices])[:, 1], marker='x', label=f'True Class {label}', alpha=0.7)
+
                 
             # Add decision line based on threshold
             ax.axhline(y=0.5, color='red', linestyle='--')
@@ -358,15 +364,17 @@ class ChurnLibrary:
             X_data = self.X_test
             
         # Initialize SHAP explainer
-        explainer = shap.TreeExplainer(self.cv_rfc.best_estimator_) # either pass the X_data as background data or it will use tree_path_dependent
+        explainer = shap.TreeExplainer(self.rfc_best) # either pass the X_data as background data or it will use tree_path_dependent
         shap_values = explainer.shap_values(X_data)
         shap.summary_plot(shap_values, X_data, show=False) # or will create a bar plot because the output has more than one class
         plt.gcf() # get the current figure
+        plt.tight_layout()
         plt.savefig(f"{output_pth}/feature_summaryplot_bar_multiclass.png")
         plt.close()
         # refer to https://github.com/shap/shap/issues/837#issuecomment-539491822
         shap.summary_plot(shap_values[0], X_data, show=False) # one question is that which of [0] or [1] represent churn=0?
         plt.gcf() # get the current figure
+        plt.tight_layout()
         plt.savefig(f"{output_pth}/feature_summaryplot_dot.png")
         plt.close()
         
@@ -375,7 +383,7 @@ class ChurnLibrary:
         # while SHAP is based on the magnitude of feature attributions.
         
         # Calculate feature importances
-        importances = self.cv_rfc.best_estimator_.feature_importances_
+        importances = self.rfc_best.feature_importances_
         # Sort feature importances in descending order
         indices = np.argsort(importances)[::-1]
 
@@ -434,7 +442,7 @@ class ChurnLibrary:
         lrc.fit(X_train, y_train)
         return lrc
     
-    def train_models(self):
+    def train_models(self, pretrained=False):
         """
         Train models, store results and models.
 
@@ -452,19 +460,29 @@ class ChurnLibrary:
             'max_depth': [4, 50, 100],
             'criterion': ['gini', 'entropy']
         }
-        # train Random Forest
-        self.cv_rfc = self._train_random_forest_classifier_with_grid_search(self.X_train, self.y_train, param_grid)
-        y_train_preds_rf = self.cv_rfc.best_estimator_.predict(self.X_train)
-        y_test_preds_rf = self.cv_rfc.best_estimator_.predict(self.X_test)
-        
-        # train Logistic Regression
-        self.lrc = self._train_logistic_regression(self.X_train, self.y_train)
+        if pretrained:
+            rfc_model_path = os.path.join('./models/', 'rfc_model.pkl')
+            lrc_model_path = os.path.join('./models/', 'logistic_model.pkl')
+            assert os.path.exists(rfc_model_path), "Random Forest model not saved"
+            assert os.path.exists(lrc_model_path), "Logistic Regression model not saved"
+            # load the pre-trained models
+            self.rfc_best = joblib.load(rfc_model_path)
+            self.lrc = joblib.load(lrc_model_path)
+        else:
+            # train Random Forest
+            self.cv_rfc = self._train_random_forest_classifier_with_grid_search(self.X_train, self.y_train, param_grid)
+            self.rfc_best = self.cv_rfc.best_estimator_
+
+            # train Logistic Regression
+            self.lrc = self._train_logistic_regression(self.X_train, self.y_train)
+            # save best model
+            joblib.dump(self.rfc_best, './models/rfc_model.pkl')
+            joblib.dump(self.lrc, './models/logistic_model.pkl')
+        # generate predictions
+        y_train_preds_rf = self.rfc_best.predict(self.X_train)
+        y_test_preds_rf = self.rfc_best.predict(self.X_test)
         y_train_preds_lr = self.lrc.predict(self.X_train)
         y_test_preds_lr = self.lrc.predict(self.X_test)
-                
-        # save best model
-        joblib.dump(self.cv_rfc.best_estimator_, './models/rfc_model.pkl')
-        joblib.dump(self.lrc, './models/logistic_model.pkl')
 
 if __name__ == '__main__':
 
@@ -478,7 +496,7 @@ if __name__ == '__main__':
 
     # Set up argument parser
     parser = argparse.ArgumentParser(description='Import data for churn prediction.')
-    parser.add_argument('--data_path', type=str, required=True, help='Path to the CSV data file.')
+    parser.add_argument('--data-path', type=str, required=True, help='Path to the CSV data file.')
 
     # Parse command-line arguments
     args = parser.parse_args()
@@ -510,7 +528,7 @@ if __name__ == '__main__':
         raise err
         
     # 4. create training and test data sets
-    removing_cols = cat_columns.append('Attrition_Flag')
+    removing_cols = cat_columns + ['Attrition_Flag']
     try:
         cl_object.perform_feature_engineering('Churn', removing_cols)
         logging.info("training and test datasets are created successfully!")
@@ -520,7 +538,7 @@ if __name__ == '__main__':
     
     # 5. train two models, regression and randomforest
     try:
-        cl_object.train_models()
+        cl_object.train_models(True)
         logging.info("the models trained successfully!")
     except Exception as err:
         logging.error(f"Failed to train the model on the prepared datasets: {err}" , exc_info = err)
@@ -532,8 +550,8 @@ if __name__ == '__main__':
     y_test_preds_lr = cl_object.lrc.predict(cl_object.X_test)
 
     # Generate predictions for random forest (0 or 1) with a threshold of 0.5
-    y_train_preds_rf = cl_object.cv_rfc.best_estimator_.predict(X_train)
-    y_test_preds_rf = cl_object.cv_rfc.best_estimator_.predict(X_test)
+    y_train_preds_rf = cl_object.rfc_best.predict(cl_object.X_train)
+    y_test_preds_rf = cl_object.rfc_best.predict(cl_object.X_test)
     
     try:
         cl_object.classification_report_image(y_train_preds_lr, y_train_preds_rf, 

@@ -1,6 +1,10 @@
-import joblib
+"""
+The churn_script_logging_and_test.py is a library of functions to test
+the functionality of ChurnLibrary class.
+"""
 import os
 import logging
+import joblib
 import pytest
 from sklearn.datasets import make_classification
 from sklearn.ensemble import RandomForestClassifier
@@ -18,6 +22,7 @@ logging.basicConfig(
     format='%(name)s - %(levelname)s - %(message)s'
 )
 
+
 @pytest.fixture
 def cl_object():
     """
@@ -30,31 +35,35 @@ def cl_object():
         # Initialize ChurnLibrary object
         obj = ChurnLibrary("./data/bank_data.csv")
         logging.info("ChurnLibrary object initialized successfully.")
-        
+
         # Generate synthetic data for testing
-        X, y = make_classification(n_samples=100, n_features=10, random_state=42)
+        X, y = make_classification(
+            n_samples=100, n_features=10, random_state=42)
         # Create a DataFrame with dummy column names
         feature_names = [f'feature_{i}' for i in range(X.shape[1])]
         X_df = pd.DataFrame(X, columns=feature_names)
         y_df = pd.DataFrame(y, columns=['target'])
-        X_train, X_test, y_train, y_test = train_test_split(X_df, y_df, test_size=0.5, random_state=42)
-        
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_df, y_df, test_size=0.5, random_state=42)
+
         # Attach data variables to the ChurnLibrary object
         obj.X_train = X_train
         obj.X_test = X_test
         obj.y_train = y_train
         obj.y_test = y_test
         obj.X = X_df  # Attach DataFrame with dummy column names
-        
+
         obj.y_train = obj.y_train.values.ravel()
         obj.y_test = obj.y_test.values.ravel()
-        
+
     except FileNotFoundError as err:
-        logging.error("FileNotFoundError occurred during object initialization: %s", err)
+        logging.error(
+            "FileNotFoundError occurred during object initialization: %s", err)
         raise err
-    
+
     # Return the ChurnLibrary object as the fixture
     return obj
+
 
 def test_import(cl_object):
     """
@@ -71,8 +80,10 @@ def test_import(cl_object):
         assert cl_object.df.shape[1] > 0
         logging.info("Testing import_data: SUCCESS")
     except AssertionError as err:
-        logging.error("Testing import_data: The file doesn't appear to have rows and columns")
+        logging.error(
+            "Testing import_data: The file doesn't appear to have rows and columns")
         raise err
+
 
 def test_eda(cl_object):
     """
@@ -88,20 +99,31 @@ def test_eda(cl_object):
         cl_object.perform_eda()
         logging.info("Test perform_eda: Function call SUCCESS")
     except Exception as err:
-        logging.error(f"Test perform_eda: {err}")
+        logging.error("Test perform_eda: %s", err)
         raise err
     try:
         images_dir = './images'
         # Verify that the images have been created in the specified directory
-        assert os.path.exists(os.path.join(images_dir, "churn_vs_active_histogram.png")), "EDA churn_vs_active_histogram data not generated"
-        assert os.path.exists(os.path.join(images_dir, "customer_age_histogram.png")), "EDA customer_age_histogram data not generated"
-        assert os.path.exists(os.path.join(images_dir, "marital_status_barplot.png")), "EDA marital_status_barplot data not generated"
-        assert os.path.exists(os.path.join(images_dir, "density_total_trans_count.png")), "EDA density_total_trans_count data not generated"
-        assert os.path.exists(os.path.join(images_dir, "heatmap_corr.png")), "EDA heatmap_corr data not generated"
-        logging.info(f"Test perform_eda: SUCCESS")
+        assert os.path.exists(os.path.join(images_dir, "churn_vs_active_histogram.png")), (
+            "EDA churn_vs_active_histogram data not generated"
+            )
+        assert os.path.exists(os.path.join(images_dir, "customer_age_histogram.png")), (
+            "EDA customer_age_histogram data not generated"
+            )
+        assert os.path.exists(os.path.join(images_dir, "marital_status_barplot.png")), (
+            "EDA marital_status_barplot data not generated"
+            )
+        assert os.path.exists(os.path.join(images_dir, "density_total_trans_count.png")), (
+            "EDA density_total_trans_count data not generated"
+            )
+        assert os.path.exists(os.path.join(images_dir, "heatmap_corr.png")), (
+            "EDA heatmap_corr data not generated"
+            )
+        logging.info("Test perform_eda: SUCCESS")
     except AssertionError as err:
-        logging.error(f"Test perform_eda: {err}")
+        logging.error("Test perform_eda: %s", err)
         raise err
+
 
 def test_encoder_helper(cl_object):
     """
@@ -120,14 +142,14 @@ def test_encoder_helper(cl_object):
         'Income_Category',
         'Card_Category'
     ]
-    
+
     try:
         cl_object.encoder_helper(cat_columns, 'Churn')
         logging.info("Test encoder_helper: SUCCESS")
     except Exception as err:
-        logging.error(f"Test encoder_helper: {err}")
+        logging.error("Test encoder_helper: %s", err)
         raise err
-        
+
     # Verify the expected output
     expected_columns = [
         'Gender_Churn',
@@ -137,16 +159,21 @@ def test_encoder_helper(cl_object):
         'Card_Category_Churn'
     ]
     try:
-        assert all(col in cl_object.df.columns for col in expected_columns), "New columns not created"
+        assert all(
+            col in cl_object.df.columns for col in expected_columns), "New columns not created"
 
-        # Assert that values in the new columns are within the expected range (0 to 1)
+        # Assert that values in the new columns are within the expected range
+        # (0 to 1)
         for col in expected_columns:
-            assert all(0 <= cl_object.df[col]) and all(cl_object.df[col] <= 1), f"Values in {col} column are not within the expected range"
-        
+            assert all(
+                0 <= cl_object.df[col]) and all(
+                cl_object.df[col] <= 1), f"Values in {col} column are not within the expected range"
+
     except AssertionError as err:
-        logging.error(f"Testing encoder_helper: {err}")
+        logging.error("Testing encoder_helper: %s", err)
         raise err
-        
+
+
 def test_perform_feature_engineering(cl_object):
     """
     Test perform_feature_engineering function.
@@ -166,26 +193,36 @@ def test_perform_feature_engineering(cl_object):
         'Card_Category',
         'Attrition_Flag'
     ]
-    
-    try: 
+
+    try:
         cl_object.perform_feature_engineering('Churn', encoded_columns)
-        logging.info(f"Test perform_feature_engineering: ....")
-        
+        logging.info("Test perform_feature_engineering: ....")
+
         # Verify the shapes of the returned data
         assert cl_object.y_train.ndim == 1, "Number of response feature in y must be the 1"
-        assert cl_object.X_train.shape[0] == cl_object.y_train.shape[0], "Number of samples in X_train and y_train must be the same"
-        assert cl_object.X_test.shape[0] == cl_object.y_test.shape[0], "Number of samples in X_test and y_test must be the same"
+        assert cl_object.X_train.shape[0] == cl_object.y_train.shape[
+            0], "Number of samples in X_train and y_train must be the same"
+        assert cl_object.X_test.shape[0] == cl_object.y_test.shape[
+            0], "Number of samples in X_test and y_test must be the same"
 
-        # Assert that train-test split sizes are correct (assuming test_size=0.3)
-        assert abs(cl_object.X_train.shape[0] / cl_object.df.shape[0] - 0.7) < 0.01, "Incorrect train size"
-        assert abs(cl_object.X_test.shape[0] / cl_object.df.shape[0] - 0.3) < 0.01, "Incorrect test size"
-        logging.info(f"Test perform_feature_engineering: SUCCESS")
+        # Assert that train-test split sizes are correct (assuming
+        # test_size=0.3)
+        assert abs(cl_object.X_train.shape[0] /
+                   cl_object.df.shape[0] -
+                   0.7) < 0.01, "Incorrect train size"
+        assert abs(cl_object.X_test.shape[0] /
+                   cl_object.df.shape[0] -
+                   0.3) < 0.01, "Incorrect test size"
+        logging.info("Test perform_feature_engineering: SUCCESS")
     except AssertionError as err:
-        logging.error(f"Testing perform_feature_engineering: {err}")
+        logging.error("Testing perform_feature_engineering: %s", err)
         raise err
     except Exception as e:
-        logging.error("An unexpected error occurred during perform_feature_engineering", exc_info = e)
+        logging.error(
+            "An unexpected error occurred during perform_feature_engineering",
+            exc_info=e)
         raise
+
 
 def test_classification_report_image(cl_object):
     """
@@ -197,34 +234,49 @@ def test_classification_report_image(cl_object):
     Raises:
         AssertionError: If expected report images are not generated.
     """
-    # Generate random predictions for logistic regression (0 or 1) with a threshold of 0.5
-    y_train_preds_lr = np.random.choice([0, 1], size=len(cl_object.y_train), p=[0.5, 0.5])
-    y_test_preds_lr = np.random.choice([0, 1], size=len(cl_object.y_test), p=[0.5, 0.5])
+    # Generate random predictions for logistic regression (0 or 1) with a
+    # threshold of 0.5
+    y_train_preds_lr = np.random.choice(
+        [0, 1], size=len(cl_object.y_train), p=[0.5, 0.5])
+    y_test_preds_lr = np.random.choice(
+        [0, 1], size=len(cl_object.y_test), p=[0.5, 0.5])
 
-    # Generate random predictions for random forest (0 or 1) with a threshold of 0.5
-    y_train_preds_rf = np.random.choice([0, 1], size=len(cl_object.y_train), p=[0.5, 0.5])
-    y_test_preds_rf = np.random.choice([0, 1], size=len(cl_object.y_test), p=[0.5, 0.5])
+    # Generate random predictions for random forest (0 or 1) with a threshold
+    # of 0.5
+    y_train_preds_rf = np.random.choice(
+        [0, 1], size=len(cl_object.y_train), p=[0.5, 0.5])
+    y_test_preds_rf = np.random.choice(
+        [0, 1], size=len(cl_object.y_test), p=[0.5, 0.5])
 
     # Ensure the images folder exists
     images_dir = "./images"
     if not os.path.exists(images_dir):
         os.makedirs(images_dir)
 
-    
     try:
         # Call the classification_report_image method
-        cl_object.classification_report_image(y_train_preds_lr, 
-                                          y_train_preds_rf, y_test_preds_lr, y_test_preds_rf)
+        cl_object.classification_report_image(
+            y_train_preds_lr,
+            y_train_preds_rf,
+            y_test_preds_lr,
+            y_test_preds_rf)
         # Verify that the images have been created in the specified directory
-        assert os.path.exists(os.path.join(images_dir, "rfc_classification_report.png")), "RFC report for test/train data not generated"
-        assert os.path.exists(os.path.join(images_dir, "lrc_classification_report.png")), "LRC report for test/train data not generated"
-        logging.info(f"Testing classification_report_image: SUCCESS")
+        assert os.path.exists(os.path.join(images_dir, "rfc_classification_report.png")), (
+            "RFC report for test/train data not generated"
+            )
+        assert os.path.exists(os.path.join(images_dir, "lrc_classification_report.png")), (
+            "LRC report for test/train data not generated"
+            )
+        logging.info("Testing classification_report_image: SUCCESS")
     except AssertionError as err:
-        logging.error(f"Testing classification_report_image: {err}")
+        logging.error("Testing classification_report_image: %s", err)
         raise err
     except Exception as e:
-        logging.error("An unexpected error occurred during classification_report_image", exc_info = e)
+        logging.error(
+            "An unexpected error occurred during classification_report_image",
+            exc_info=e)
         raise
+
 
 def test_plot_roc_curves(cl_object):
     """
@@ -237,7 +289,7 @@ def test_plot_roc_curves(cl_object):
         AssertionError: If the ROC plot comparison for models is not generated.
     """
     # Grid search parameters
-    param_grid = { 
+    param_grid = {
         'n_estimators': [200, 500],
         'max_features': ['sqrt', 'log2'],
         'max_depth': [4, 50, 100],
@@ -251,26 +303,30 @@ def test_plot_roc_curves(cl_object):
     # Train models (in real scenario, you would use cl_object to train models)
     cl_object.cv_rfc.fit(cl_object.X_train, cl_object.y_train)
     cl_object.lrc.fit(cl_object.X_train, cl_object.y_train)
-    
+
     # assign the best model
     cl_object.rfc_best = cl_object.cv_rfc.best_estimator_
-    
+
     # Specify the save path for the ROC plot
     save_path = './images'
 
     # Call the plot_roc_curves method
-    
+
     try:
         cl_object.roc_curves_comparison(save_path)
         # Assert that the saved image file exists
-        assert os.path.exists(save_path), "ROC plot comparison for the models not generated"
-        logging.info(f"Testing plot_roc_curves: SUCCESS")
+        assert os.path.exists(
+            save_path), "ROC plot comparison for the models not generated"
+        logging.info("Testing plot_roc_curves: SUCCESS")
     except AssertionError as err:
-            logging.error(f"Testing plot_roc_curves: {err}")
-            raise err
+        logging.error("Testing plot_roc_curves: %s", err)
+        raise err
     except Exception as e:
-        logging.error("An unexpected error occurred during plot_roc_curves", exc_info = e)
+        logging.error(
+            "An unexpected error occurred during plot_roc_curves",
+            exc_info=e)
         raise
+
 
 def test_scatter_plots_comparison(cl_object):
     """
@@ -283,7 +339,7 @@ def test_scatter_plots_comparison(cl_object):
         AssertionError: If the scatter plot comparison for models is not generated.
     """
     # Grid search parameters
-    param_grid = { 
+    param_grid = {
         'n_estimators': [200, 500],
         'max_features': ['sqrt', 'log2'],
         'max_depth': [4, 50, 100],
@@ -297,7 +353,7 @@ def test_scatter_plots_comparison(cl_object):
     # Train models (in real scenario, you would use cl_object to train models)
     cl_object.cv_rfc.fit(cl_object.X_train, cl_object.y_train)
     cl_object.lrc.fit(cl_object.X_train, cl_object.y_train)
-    
+
     # assign the best model
     cl_object.rfc_best = cl_object.cv_rfc.best_estimator_
 
@@ -307,14 +363,18 @@ def test_scatter_plots_comparison(cl_object):
     try:
         cl_object.scatter_plots_comparison(save_path)
         # Assert that the saved image file exists
-        assert os.path.exists(save_path), "Scatter plot comparison for the models not generated"
-        logging.info(f"Testing scatter_plots_comparison: SUCCESS")
+        assert os.path.exists(
+            save_path), "Scatter plot comparison for the models not generated"
+        logging.info("Testing scatter_plots_comparison: SUCCESS")
     except AssertionError as err:
-            logging.error(f"Testing scatter_plots_comparison: {err}")
-            raise err
+        logging.error("Testing scatter_plots_comparison: %s", err)
+        raise err
     except Exception as e:
-        logging.error("An unexpected error occurred during scatter_plots_comparison", exc_info = e)
+        logging.error(
+            "An unexpected error occurred during scatter_plots_comparison",
+            exc_info=e)
         raise
+
 
 def test_feature_importance_plot(cl_object):
     """
@@ -327,7 +387,7 @@ def test_feature_importance_plot(cl_object):
         AssertionError: If the feature importance plots for the models are not generated.
     """
     # Grid search parameters
-    param_grid = { 
+    param_grid = {
         'n_estimators': [200, 500],
         'max_features': ['sqrt', 'log2'],
         'max_depth': [4, 50, 100],
@@ -337,24 +397,31 @@ def test_feature_importance_plot(cl_object):
     rfc = RandomForestClassifier(random_state=42)
     cl_object.cv_rfc = GridSearchCV(estimator=rfc, param_grid=param_grid, cv=5)
     cl_object.cv_rfc.fit(cl_object.X_train, cl_object.y_train)
-    
+
     # assign the best model
     cl_object.rfc_best = cl_object.cv_rfc.best_estimator_
-    
+
     # Specify the save path for the ROC plot
     output_pth = './images'
 
     cl_object.feature_importance_plot(ChurnLibrary.TEST_XDATA, output_pth)
     try:
         # Assert that the saved image files exist
-        assert os.path.exists(f"{output_pth}/feature_summaryplot_bar_multiclass.png"), "Feature summaryplot bar multiclass plot for the models not generated"
-        assert os.path.exists(f"{output_pth}/feature_summaryplot_dot.png"), "Feature summaryplot dot plot for the models not generated"
-        assert os.path.exists(f"{output_pth}/feature_gridsearch.png"), "Feature gridsearch plot for the models not generated"
-        logging.info(f"Testing feature_importance_plot: SUCCESS")
+        assert os.path.exists(f"{output_pth}/feature_summaryplot_bar_multiclass.png"), (
+            "Feature summaryplot bar multiclass plot for the models not generated"
+            )
+        assert os.path.exists(f"{output_pth}/feature_summaryplot_dot.png"), (
+            "Feature summaryplot dot plot for the models not generated"
+            )
+        assert os.path.exists(f"{output_pth}/feature_gridsearch.png"), (
+            "Feature gridsearch plot for the models not generated"
+            )
+        logging.info("Testing feature_importance_plot: SUCCESS")
     except AssertionError as err:
-        logging.error(f"Testing feature_importance_plot: {err}")
+        logging.error("Testing feature_importance_plot: %s", err)
         raise err
-    
+
+
 def test_train_models(cl_object):
     """
     Test train_models function.
@@ -369,24 +436,29 @@ def test_train_models(cl_object):
     cl_object.train_models()
 
     try:
-        logging.info(f"Test train_models: ...")
+        logging.info("Test train_models: ...")
         assert hasattr(cl_object, 'cv_rfc'), "cv_rfc attribute is not set"
         assert hasattr(cl_object, 'lrc'), "lrc attribute is not set"
-        assert hasattr(cl_object.cv_rfc, 'best_estimator_'), "cv_rfc best estimator not set"
+        assert hasattr(
+            cl_object.cv_rfc, 'best_estimator_'), "cv_rfc best estimator not set"
         assert hasattr(cl_object.lrc, 'predict'), "lrc predict method not set"
-        
+
         # Check if the models are saved
         rfc_model_path = os.path.join('./models/', 'rfc_model.pkl')
         assert os.path.exists(rfc_model_path), "Random Forest model not saved"
         lrc_model_path = os.path.join('./models/', 'logistic_model.pkl')
-        assert os.path.exists(lrc_model_path), "Logistic Regression model not saved"
-        
+        assert os.path.exists(
+            lrc_model_path), "Logistic Regression model not saved"
+
         # Load the saved models and ensure they are of the correct type
         rfc_model = joblib.load(rfc_model_path)
-        assert isinstance(rfc_model, type(cl_object.cv_rfc.best_estimator_)), "Loaded Random Forest model type mismatch"
+        assert isinstance(
+            rfc_model, type(
+                cl_object.cv_rfc.best_estimator_)), "Loaded Random Forest model type mismatch"
         lrc_model = joblib.load(lrc_model_path)
-        assert isinstance(lrc_model, type(cl_object.lrc)), "Loaded Logistic Regression model type mismatch"
-        logging.info(f"Test train_models: SUCCESS")
+        assert isinstance(lrc_model, type(cl_object.lrc)
+                          ), "Loaded Logistic Regression model type mismatch"
+        logging.info("Test train_models: SUCCESS")
     except AssertionError as err:
-        logging.error(f"Testing train_models: {err}")
+        logging.error("Testing train_models: %s", err)
         raise err

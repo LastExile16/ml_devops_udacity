@@ -538,7 +538,7 @@ if __name__ == '__main__':
     
     # 5. train two models, regression and randomforest
     try:
-        cl_object.train_models(True)
+        cl_object.train_models(False)
         logging.info("the models trained successfully!")
     except Exception as err:
         logging.error(f"Failed to train the model on the prepared datasets: {err}" , exc_info = err)

@@ -46,6 +46,9 @@ def cl_object():
         obj.y_test = y_test
         obj.X = X_df  # Attach DataFrame with dummy column names
         
+        obj.y_train = obj.y_train.values.ravel()
+        obj.y_test = obj.y_test.values.ravel()
+        
     except FileNotFoundError as err:
         logging.error("FileNotFoundError occurred during object initialization: %s", err)
         raise err
@@ -163,11 +166,13 @@ def test_perform_feature_engineering(cl_object):
         'Card_Category',
         'Attrition_Flag'
     ]
-    cl_object.perform_feature_engineering('Churn', encoded_columns)
-    logging.info(f"Test perform_feature_engineering: ....")
-    # Verify the shapes of the returned data
+    
     try: 
-        assert cl_object.y_train.shape[1] == 1, "Number of response feature in y must be the 1"
+        cl_object.perform_feature_engineering('Churn', encoded_columns)
+        logging.info(f"Test perform_feature_engineering: ....")
+        
+        # Verify the shapes of the returned data
+        assert cl_object.y_train.ndim == 1, "Number of response feature in y must be the 1"
         assert cl_object.X_train.shape[0] == cl_object.y_train.shape[0], "Number of samples in X_train and y_train must be the same"
         assert cl_object.X_test.shape[0] == cl_object.y_test.shape[0], "Number of samples in X_test and y_test must be the same"
 
@@ -178,6 +183,9 @@ def test_perform_feature_engineering(cl_object):
     except AssertionError as err:
         logging.error(f"Testing perform_feature_engineering: {err}")
         raise err
+    except Exception as e:
+        logging.error("An unexpected error occurred during perform_feature_engineering", exc_info = e)
+        raise
 
 def test_classification_report_image(cl_object):
     """
@@ -202,10 +210,11 @@ def test_classification_report_image(cl_object):
     if not os.path.exists(images_dir):
         os.makedirs(images_dir)
 
-    # Call the classification_report_image method
-    cl_object.classification_report_image(y_train_preds_lr, 
-                                          y_train_preds_rf, y_test_preds_lr, y_test_preds_rf)
+    
     try:
+        # Call the classification_report_image method
+        cl_object.classification_report_image(y_train_preds_lr, 
+                                          y_train_preds_rf, y_test_preds_lr, y_test_preds_rf)
         # Verify that the images have been created in the specified directory
         assert os.path.exists(os.path.join(images_dir, "rfc_classification_report.png")), "RFC report for test/train data not generated"
         assert os.path.exists(os.path.join(images_dir, "lrc_classification_report.png")), "LRC report for test/train data not generated"
@@ -213,6 +222,9 @@ def test_classification_report_image(cl_object):
     except AssertionError as err:
         logging.error(f"Testing classification_report_image: {err}")
         raise err
+    except Exception as e:
+        logging.error("An unexpected error occurred during classification_report_image", exc_info = e)
+        raise
 
 def test_plot_roc_curves(cl_object):
     """
@@ -239,19 +251,26 @@ def test_plot_roc_curves(cl_object):
     # Train models (in real scenario, you would use cl_object to train models)
     cl_object.cv_rfc.fit(cl_object.X_train, cl_object.y_train)
     cl_object.lrc.fit(cl_object.X_train, cl_object.y_train)
-
+    
+    # assign the best model
+    cl_object.rfc_best = cl_object.cv_rfc.best_estimator_
+    
     # Specify the save path for the ROC plot
     save_path = './images'
 
     # Call the plot_roc_curves method
-    cl_object.roc_curves_comparison(save_path)
+    
     try:
+        cl_object.roc_curves_comparison(save_path)
         # Assert that the saved image file exists
         assert os.path.exists(save_path), "ROC plot comparison for the models not generated"
         logging.info(f"Testing plot_roc_curves: SUCCESS")
     except AssertionError as err:
             logging.error(f"Testing plot_roc_curves: {err}")
             raise err
+    except Exception as e:
+        logging.error("An unexpected error occurred during plot_roc_curves", exc_info = e)
+        raise
 
 def test_scatter_plots_comparison(cl_object):
     """
@@ -278,18 +297,24 @@ def test_scatter_plots_comparison(cl_object):
     # Train models (in real scenario, you would use cl_object to train models)
     cl_object.cv_rfc.fit(cl_object.X_train, cl_object.y_train)
     cl_object.lrc.fit(cl_object.X_train, cl_object.y_train)
+    
+    # assign the best model
+    cl_object.rfc_best = cl_object.cv_rfc.best_estimator_
 
     # Specify the save path for the scatterplot plot
     save_path = './images'
 
-    cl_object.scatter_plots_comparison(save_path)
     try:
+        cl_object.scatter_plots_comparison(save_path)
         # Assert that the saved image file exists
         assert os.path.exists(save_path), "Scatter plot comparison for the models not generated"
         logging.info(f"Testing scatter_plots_comparison: SUCCESS")
     except AssertionError as err:
             logging.error(f"Testing scatter_plots_comparison: {err}")
             raise err
+    except Exception as e:
+        logging.error("An unexpected error occurred during scatter_plots_comparison", exc_info = e)
+        raise
 
 def test_feature_importance_plot(cl_object):
     """
@@ -312,7 +337,10 @@ def test_feature_importance_plot(cl_object):
     rfc = RandomForestClassifier(random_state=42)
     cl_object.cv_rfc = GridSearchCV(estimator=rfc, param_grid=param_grid, cv=5)
     cl_object.cv_rfc.fit(cl_object.X_train, cl_object.y_train)
-
+    
+    # assign the best model
+    cl_object.rfc_best = cl_object.cv_rfc.best_estimator_
+    
     # Specify the save path for the ROC plot
     output_pth = './images'
 

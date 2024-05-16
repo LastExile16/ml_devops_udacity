@@ -5,7 +5,7 @@ import argparse
 import logging
 import os
 import seaborn as sns
-from sklearn.metrics import plot_roc_curve, classification_report
+from sklearn.metrics import plot_roc_curve, roc_curve, classification_report
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -65,6 +65,7 @@ class ChurnLibrary:
         self.cv_rfc = None  # models to be trained later
         self.rfc_best = None  # the best estimator within cv_rfc
         self.lrc = None  # models to be trained later
+        self.best_threshold = []  # the best threshold for each class [0: rfc, 1: lrc]
 
     def perform_eda(self):
         """
@@ -164,14 +165,14 @@ class ChurnLibrary:
         ax.text(
             0.01, 0.05, str(
                 classification_report(
-                    self.y_test, y_test_pred, zero_division=1)), {
+                    self.y_test, y_test_pred, zero_division=0)), {
                 'fontsize': 10}, fontproperties='monospace')
         ax.text(0.01, 0.6, f'{model_name} Test', {
                 'fontsize': 10}, fontproperties='monospace')
         ax.text(
             0.01, 0.7, str(
                 classification_report(
-                    self.y_train, y_train_pred, zero_division=1)), {
+                    self.y_train, y_train_pred, zero_division=0)), {
                 'fontsize': 10}, fontproperties='monospace')
         ax.axis('off')  # Turn off axis
 
@@ -288,8 +289,14 @@ class ChurnLibrary:
         for i, model in enumerate(models):
             ax = axes[i] if num_models > 1 else axes  # Select subplot
 
-            # Make predictions on test data
-            y_pred = model.predict(self.X_test)
+            # Set your custom threshold
+            custom_threshold = self.best_threshold[i]  # Example threshold
+
+            # Get the predicted probabilities for the test set
+            probabilities = model.predict_proba(self.X_test)
+
+            # Get the predictions based on the custom threshold
+            y_pred = (probabilities[:, 1] >= custom_threshold).astype(int)
 
             # Plot scatter plot for each class based on predicted labels
             for label in range(num_classes):
@@ -306,7 +313,7 @@ class ChurnLibrary:
                                :, 1], marker='x', label=f'True Class {label}', alpha=0.7)
 
             # Add decision line based on threshold
-            ax.axhline(y=0.5, color='red', linestyle='--')
+            ax.axhline(y=custom_threshold, color='red', linestyle='--')
             ax.set_title(
                 f'{model.__class__.__name__} Predictions vs. True Classes')
             ax.set_xlabel('Data Point Index')
@@ -445,6 +452,22 @@ class ChurnLibrary:
             # save best model
             joblib.dump(self.rfc_best, './models/rfc_model.pkl')
             joblib.dump(self.lrc, './models/logistic_model.pkl')
+        
+        # get the best (most balanced) threshold based on ROC
+        y_test = self.y_test
+        for model in [self.rfc_best, self.lrc]:
+            # Get the true labels and predicted probabilities
+            probabilities = model.predict_proba(self.X_test)[:, 1]
+
+            # Calculate the ROC curve
+            fpr, tpr, thresholds = roc_curve(y_test, probabilities)
+
+            # Calculate Youden's J statistic for each threshold
+            j_scores = tpr - fpr
+
+            # Find the index of the best threshold
+            best_threshold_index = np.argmax(j_scores)
+            self.best_threshold.append(thresholds[best_threshold_index])
 
 
 def save_plot(fig, save_name):
@@ -585,7 +608,7 @@ if __name__ == '__main__':
 
     # 5. train two models, regression and randomforest
     try:
-        cl_object.train_models(False)
+        cl_object.train_models(True)
         logging.info("the models trained successfully!")
     except Exception as err:
         logging.error(
@@ -594,14 +617,21 @@ if __name__ == '__main__':
         raise err
 
     # 6. generate classification reports for both regression and randomforest models
-    # Generate predictions for logistic regression (0 or 1) with a threshold
-    # of 0.5
+    # Generate predictions for logistic regression (0 or 1) with best threshold
+    lrc_threshold = cl_object.best_threshold[0]  # Example threshold
+    prob_test_lrc = cl_object.lrc.predict_proba(cl_object.X_test)
+    
+    # Get the predictions based on the custom threshold
     y_train_preds_lr = cl_object.lrc.predict(cl_object.X_train)
-    y_test_preds_lr = cl_object.lrc.predict(cl_object.X_test)
+    y_test_preds_lr = (prob_test_lrc[:, 1] >= lrc_threshold).astype(int)
 
-    # Generate predictions for random forest (0 or 1) with a threshold of 0.5
+    # Generate predictions for random forest (0 or 1) with best threshold
+    rfc_threshold = cl_object.best_threshold[1]  # Example threshold
+    prob_test_rfc = cl_object.rfc_best.predict_proba(cl_object.X_test)
+    
+    # Get the predictions based on the custom threshold
     y_train_preds_rf = cl_object.rfc_best.predict(cl_object.X_train)
-    y_test_preds_rf = cl_object.rfc_best.predict(cl_object.X_test)
+    y_test_preds_rf = (prob_test_rfc[:, 1] >= rfc_threshold).astype(int)
 
     try:
         cl_object.classification_report_image(
